@@ -13,15 +13,19 @@ public class User {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
+
 	private String name;
 	private Integer age;
 	private String sex;
-	private String address;
+	private String email; // 修改字段为 email
 	private String phone;
-	private String collect;
+
 	@Column(name = "create_time")
 	private String createTime;
 
+	private String collect; // 应为 "是" 或 "否"
+
+	// Getter 和 Setter 方法
 
 	public String getCreateTime() {
 		return createTime;
@@ -29,14 +33,6 @@ public class User {
 
 	public void setCreateTime(String createTime) {
 		this.createTime = createTime;
-	}
-	//收藏
-	public String getCollect() {
-		return collect;
-	}
-
-	public void setCollect(String collect) {
-		this.collect = collect;
 	}
 
 	public String getPhone() {
@@ -47,12 +43,12 @@ public class User {
 		this.phone = phone;
 	}
 
-	public String getAddress() {
-		return address;
+	public String getEmail() { // 修改 Getter
+		return email;
 	}
 
-	public void setAddress(String address) {
-		this.address = address;
+	public void setEmail(String email) { // 修改 Setter
+		this.email = email;
 	}
 
 	public String getSex() {
@@ -85,5 +81,13 @@ public class User {
 
 	public void setId(Long id) {
 		this.id = id;
+	}
+
+	public String getCollect() {
+		return collect;
+	}
+
+	public void setCollect(String collect) {
+		this.collect = collect;
 	}
 }
