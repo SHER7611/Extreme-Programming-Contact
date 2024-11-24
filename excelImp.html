@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>用户信息</title>
+  <!-- 引入样式 -->
+  <link rel="stylesheet" href="element.css">
+  <style>
+    .button-group {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .button-group button {
+      flex: 1;
+      margin: 0 10px;
+    }
+  </style>
+</head>
+
+<body>
+<div id="app" style="width: 80%; margin: 0 auto">
+  <!-- 按钮组 -->
+  <div class="button-group">
+    <el-button type="primary" @click="showUserTable" :class="{ active: showUser }">用户信息表</el-button>
+    <el-button type="primary" @click="showCollectedUsers" :class="{ active: showCollected }">收藏用户列表</el-button>
+  </div>
+
+  <!-- 用户信息表 -->
+  <div v-if="showUser">
+    <h2>用户信息表</h2>
+    <el-row>
+      <el-col :span="6" style="margin-bottom: 10px">
+        <el-button type="primary" @click="add">新增</el-button>
+        <el-input v-model="name" style="width: 70%" @keyup.enter.native="loadTable(1)"></el-input>
+      </el-col>
+      <el-button type="primary" @click="loadCollect">收藏</el-button>
+      <el-button type="warning" @click="exp()">导出excel</el-button>
+      <el-upload
+              action="#"
+              :before-upload="handleBeforeUpload"
+              :show-file-list="false"
+              accept=".xlsx, .xls"
+              style="display: inline-block;">
+        <el-button type="success">导入excel</el-button>
+      </el-upload>
+    </el-row>
+    <el-table :data="page.content" stripe border style="width: 100%">
+      <el-table-column prop="name" label="用户名">
+      </el-table-column>
+      <el-table-column prop="age" label="年龄" width="180">
+      </el-table-column>
+      <el-table-column prop="sex" label="性别">
+      </el-table-column>
+      <el-table-column prop="email" label="邮箱">
+      </el-table-column>
+      <el-table-column prop="phone" label="电话">
+      </el-table-column>
+      <el-table-column fixed="right" label="操作" width="150">
+        <template slot-scope="scope">
+          <el-button type="primary" icon="el-icon-edit" size="small" circle
+                     @click="edit(scope.row)"></el-button>
+          <el-button type="danger" icon="el-icon-delete" size="small" circle
+                     @click="del(scope.row.id)"></el-button>
+          <el-button type="success" icon="el-icon-star-on" size="small" circle
+                     @click="toggleCollect(scope.row)"></el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+    <el-row type="flex" justify="center" style="margin-top: 10px">
+      <el-pagination layout="prev, pager, next" :page-size="pageSize" :current-page="pageNum"
+                     @prev-click="loadTable" @current-change="loadTable" @next-click="loadTable" :total="page.totalElements">
+      </el-pagination>
+    </el-row>
+  </div>
+
+  <!-- 收藏用户列表 -->
+  <div v-if="showCollected">
+    <h2>收藏的用户</h2>
+    <el-table :data="collectedUsers" stripe border style="width: 100%">
+      <el-table-column prop="name" label="用户名"></el-table-column>
+      <el-table-column prop="age" label="年龄" width="180"></el-table-column>
+      <el-table-column prop="sex" label="性别"></el-table-column>
+      <el-table-column prop="email" label="邮箱"></el-table-column>
+      <el-table-column prop="phone" label="电话"></el-table-column>
+      <el-table-column fixed="right" label="操作" width="150">
+        <template slot-scope="scope">
+          <el-button type="danger" size="small" circle
+                     @click="removeFromCollect(scope.row)">取消收藏</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </div>
+
+  <!-- 对话框 -->
+  <el-dialog title="用户信息" :visible.sync="dialogVisible" width="30%">
+    <el-form ref="form" :model="form" label-width="80px">
+      <el-form-item label="用户名">
+        <el-input v-model="form.name"></el-input>
+      </el-form-item>
+      <el-form-item label="年龄">
+        <el-input v-model="form.age"></el-input>
+      </el-form-item>
+      <el-form-item label="性别">
+        <el-radio v-model="form.sex" label="男">男</el-radio>
+        <el-radio v-model="form.sex" label="女">女</el-radio>
+      </el-form-item>
+      <el-form-item label="邮箱">
+        <el-input v-model="form.email"></el-input>
+      </el-form-item>
+      <el-form-item label="电话">
+        <el-input v-model="form.phone"></el-input>
+      </el-form-item>
+      <el-form-item label="是否收藏">
+        <el-switch v-model="form.collect" active-color="#13ce66" inactive-color="#ff4949"></el-switch>
+      </el-form-item>
+    </el-form>
+    <span slot="footer" class="dialog-footer">
+            <el-button @click="dialogVisible = false">取 消</el-button>
+            <el-button type="primary" @click="save">确 定</el-button>
+        </span>
+  </el-dialog>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="jquery.min.js"></script>
+<script src="vue.js"></script>
+<!-- 引入组件库 -->
+<script src="element.js"></script>
+
+<script>
+  new Vue({
+    el: '#app',
+    data: {
+      page: {},
+      name: '',
+      pageNum: 1,
+      pageSize: 8,
+      dialogVisible: false,
+      form: {},
+      collectedUsers: [], // 存储收藏用户的数组
+      showUser: true, // 控制用户信息表的显示
+      showCollected: false // 控制收藏用户列表的显示
+    },
+    created() {
+      this.loadTable(this.pageNum);
+    },
+    methods: {
+      loadTable(num) {
+        this.pageNum = num;
+        const url = `/user/page?pageNum=${this.pageNum}&pageSize=${this.pageSize}&name=${this.name}`;
+        $.get(url).then(res => {
+          this.page = res.data;
+        });
+      },
+
+      loadCollect() {
+        const url = "/user/collect?pageNum=1&pageSize=100&collect=是";
+        $.get(url).then(res => {
+          this.collectedUsers = res.data.content;
+        });
+      },
+      add() {
+        this.dialogVisible = true;
+        this.form = { collect: false }; // 默认不收藏
+      },
+      edit(row) {
+        this.form = { ...row, collect: row.collect === '是' };
+        this.dialogVisible = true;
+      },
+      save() {
+        const data = JSON.stringify(this.form);
+        if (this.form.id) {
+          $.ajax({
+            url: '/user',
+            type: 'put',
+            contentType: 'application/json',
+            data
+          }).then(() => {
+            this.dialogVisible = false;
+            this.loadTable(1);
+          });
+        } else {
+          $.ajax({
+            url: '/user',
+            type: 'post',
+            contentType: 'application/json',
+            data
+          }).then(() => {
+            this.dialogVisible = false;
+            this.loadTable(1);
+          });
+        }
+      },
+      del(id) {
+        $.ajax({
+          url: `/user/${id}`,
+          type: 'delete',
+          contentType: 'application/json'
+        }).then(() => {
+          this.loadTable(1);
+        });
+      },
+      exp() {
+        const data = this.page.content.map(item => ({
+          "用户名": item.name,
+          "年龄": item.age,
+          "性别": item.sex,
+          "邮箱": item.email,
+          "电话": item.phone,
+          "收藏": item.collect
+        }));
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '用户信息');
+        XLSX.writeFile(wb, '用户信息表.xlsx');
+      },
+      handleBeforeUpload(file) {
+        const types = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+        if (!types.includes(file.type)) {
+          this.$message.error('文件格式错误，请上传Excel文件');
+          return false;
+        }
+
+        const reader = new FileReader();
+
+        // 绑定 this 为 Vue 实例
+        const self = this; // 这里显式保存 Vue 实例的上下文
+        reader.onload = function (e) {
+          const data = e.target.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+          // 字段映射
+          const mappedData = jsonData.map(item => ({
+            name: item["用户名"],  // 映射为后端的name
+            age: item["年龄"],    // 映射为后端的age
+            sex: item["性别"],    // 映射为后端的sex
+            email: item["邮箱"],  // 映射为后端的email
+            phone: item["电话"],  // 映射为后端的phone
+            collect: item["收藏"] // 映射为后端的collect
+          }));
+
+          console.log("导入的Excel数据：", mappedData);
+
+          // 调用 importData 方法，并确保 this 指向 Vue 实例
+          if (typeof self.importData === "function") {
+            self.importData(mappedData);
+          } else {
+            console.error("importData 方法未定义！");
+          }
+        };
+
+        reader.readAsBinaryString(file);
+        return false; // 阻止默认上传行为
+      },
+
+      toggleCollect(user) {
+        const isCollected = user.collect === '是';
+        const updatedUser = { ...user, collect: isCollected ? '否' : '是' };
+        $.ajax({
+          url: '/user',
+          type: 'put',
+          contentType: 'application/json',
+          data: JSON.stringify(updatedUser)
+        }).then(() => {
+          this.loadTable(1);
+          this.loadCollect();
+        });
+      },
+      removeFromCollect(user) {
+        const updatedUser = { ...user, collect: '否' };
+        $.ajax({
+          url: '/user',
+          type: 'put',
+          contentType: 'application/json',
+          data: JSON.stringify(updatedUser)
+        }).then(() => {
+          this.loadCollect();
+        });
+      },
+      showUserTable() {
+        this.showUser = true;
+        this.showCollected = false;
+        this.loadTable(1);
+      },
+      showCollectedUsers() {
+        this.showUser = false;
+        this.showCollected = true;
+        this.loadCollect();
+      },
+      // 定义 importData 方法
+      importData(data) {
+        // 将新导入的数据与现有数据合并
+        const mergedData = [...this.page.content, ...data];
+
+        // 发送合并后的数据到后端
+        $.ajax({
+          url: '/user/import',
+          type: 'post',
+          contentType: 'application/json',
+          data: JSON.stringify(mergedData)
+        }).then(() => {
+          this.$message.success('导入成功');
+          this.loadTable(1); // 重新加载表格，显示合并后的数据
+        }).fail(() => {
+          this.$message.error('导入失败');
+        });
+      },
+
+
+    }
+  });
+</script>
+</body>
+
+</html>
